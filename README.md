@@ -171,52 +171,34 @@ Read the full specification: [SPEC.md](SPEC.md)
 | Tool | Status | Install |
 |------|--------|---------|
 | Claude (MCP) | ✅ Available | `npx omp-mcp` |
-| OpenAI | 🚧 In Progress | — |
-| Cursor | 🚧 In Progress | — |
+| OpenAI Assistants | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
+| Cursor | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
+| Copilot / VS Code | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
+| Gemini | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
 | Custom (REST) | ✅ Available | Any HTTP client |
+
+**Want to build one?** An adapter is typically 100–200 lines — read [`CONTRIBUTING.md`](CONTRIBUTING.md) and use [`adapters/claude-mcp`](adapters/claude-mcp) as a template.
 
 ---
 
 ## SDKs
 
-### TypeScript / JavaScript
+The OMP API is plain REST — any HTTP client works out of the box. Typed SDKs are on the roadmap.
+
+**Want to build one?** Python, Go, Rust, and Ruby SDKs are all needed. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+### REST (any language)
 
 ```bash
-npm install omp-sdk
-```
+# Save a memory
+curl -X POST http://localhost:3456/v1/memories \
+  -H "Content-Type: application/json" \
+  -d '{"content":"User prefers TypeScript","type":"semantic","source":{"tool":"myapp","timestamp":"2026-06-30T00:00:00Z"}}'
 
-```typescript
-import { OMPClient } from '@omp/sdk'
-
-const omp = new OMPClient({ server: 'http://localhost:3456', apiKey: 'your-key' })
-
-await omp.memories.create({
-  content: 'User prefers dark mode and minimal UI',
-  type: 'semantic',
-  tags: ['ui', 'preferences']
-})
-
-const results = await omp.memories.search('UI preferences')
-```
-
-### Python
-
-```bash
-pip install omp-python
-```
-
-```python
-from omp import OMPClient
-
-omp = OMPClient(server="http://localhost:3456", api_key="your-key")
-
-omp.memories.create(
-    content="User is an expert in Python but new to Rust",
-    type="semantic",
-    tags=["skills", "profile"]
-)
-
-results = omp.memories.search("programming skills")
+# Search memories
+curl -X POST http://localhost:3456/v1/memories/search \
+  -H "Content-Type: application/json" \
+  -d '{"q":"TypeScript","limit":5}'
 ```
 
 ---
