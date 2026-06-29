@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 import path from 'path'
 import fs from 'fs'
 import type { Memory, CreateMemoryInput, UpdateMemoryInput, ListResult, SearchResult } from '../types'
@@ -13,15 +13,15 @@ function generateId(): string {
 }
 
 export class SQLiteStorage {
-  private db: Database.Database
+  private db: DatabaseSync
 
   constructor(dbPath: string) {
     const dir = path.dirname(dbPath)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
-    this.db = new Database(dbPath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('foreign_keys = ON')
+    this.db = new DatabaseSync(dbPath)
+    this.db.exec('PRAGMA journal_mode = WAL')
+    this.db.exec('PRAGMA foreign_keys = ON')
     this.migrate()
   }
 
@@ -76,8 +76,8 @@ export class SQLiteStorage {
       type: row.type as Memory['type'],
       source: {
         tool: row.source_tool as string,
-        session_id: row.source_session_id as string | undefined,
-        user_id: row.source_user_id as string | undefined,
+        session_id: (row.source_session_id as string) ?? undefined,
+        user_id: (row.source_user_id as string) ?? undefined,
         timestamp: row.source_timestamp as string,
       },
       tags: JSON.parse(row.tags as string),
@@ -123,7 +123,7 @@ export class SQLiteStorage {
 
   list(opts: { type?: string; tool?: string; tags?: string[]; namespace?: string; limit?: number; offset?: number }): ListResult {
     const conditions: string[] = ['1=1']
-    const params: unknown[] = []
+    const params: (string | number)[] = []
 
     if (opts.type) { conditions.push('type = ?'); params.push(opts.type) }
     if (opts.tool) { conditions.push('source_tool = ?'); params.push(opts.tool) }
@@ -134,10 +134,10 @@ export class SQLiteStorage {
     const offset = opts.offset ?? 0
 
     const rows = this.db.prepare(`SELECT * FROM memories WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
-      .all([...params, limit, offset]) as Record<string, unknown>[]
+      .all(...params, limit, offset) as Record<string, unknown>[]
 
     const total = (this.db.prepare(`SELECT COUNT(*) as count FROM memories WHERE ${where}`)
-      .get(params) as { count: number }).count
+      .get(...params) as { count: number }).count
 
     let memories = rows.map(r => this.rowToMemory(r))
 
@@ -185,19 +185,23 @@ export class SQLiteStorage {
 
   search(input: { q: string; type?: string; namespace?: string; limit?: number }): SearchResult {
     const limit = input.limit ?? 10
-    const ftsQuery = input.q.trim().split(/\s+/).map(w => `"${w}"`).join(' OR ')
+    const ftsQuery = input.q.trim().split(/\s+/).map(w => `"${w.replace(/"/g, '')}"`).join(' OR ')
+
+    const extraConditions = [
+      ...(input.type ? ['m.type = ?'] : []),
+      ...(input.namespace ? ['m.namespace = ?'] : []),
+    ]
+    const extraWhere = extraConditions.length ? `AND ${extraConditions.join(' AND ')}` : ''
+    const params = [ftsQuery, ...(input.type ? [input.type] : []), ...(input.namespace ? [input.namespace] : []), limit]
 
     const rows = this.db.prepare(`
       SELECT m.* FROM memories m
       JOIN memories_fts f ON m.id = f.id
       WHERE memories_fts MATCH ?
-        ${input.type ? 'AND m.type = ?' : ''}
-        ${input.namespace ? 'AND m.namespace = ?' : ''}
+        ${extraWhere}
       ORDER BY rank
       LIMIT ?
-    `).all(
-      [ftsQuery, ...(input.type ? [input.type] : []), ...(input.namespace ? [input.namespace] : []), limit]
-    ) as Record<string, unknown>[]
+    `).all(...params) as Record<string, unknown>[]
 
     return {
       memories: rows.map(r => this.rowToMemory(r)),

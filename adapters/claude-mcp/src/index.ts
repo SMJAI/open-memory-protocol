@@ -10,7 +10,25 @@ import { z } from 'zod'
 const OMP_SERVER = process.env.OMP_SERVER ?? 'http://localhost:3456'
 const OMP_API_KEY = process.env.OMP_API_KEY ?? ''
 
-async function ompFetch(path: string, method = 'GET', body?: unknown) {
+interface OmpErrorBody {
+  error: string
+  message: string
+}
+
+interface MemoryResult {
+  id: string
+  type: string
+  content: string
+  created_at: string
+  tags: string[]
+}
+
+interface ListOrSearchResult {
+  memories: MemoryResult[]
+  total: number
+}
+
+async function ompFetch<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const res = await fetch(`${OMP_SERVER}${path}`, {
     method,
     headers: {
@@ -20,9 +38,11 @@ async function ompFetch(path: string, method = 'GET', body?: unknown) {
     body: body ? JSON.stringify(body) : undefined,
   })
 
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.message ?? `OMP error ${res.status}`)
-  return data
+  if (!res.ok) {
+    const errBody = (await res.json()) as OmpErrorBody
+    throw new Error(errBody.message ?? `OMP error ${res.status}`)
+  }
+  return (await res.json()) as T
 }
 
 const server = new Server(
@@ -88,11 +108,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }))
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params
+  const { name } = request.params
+  const args = request.params.arguments ?? {}
 
   try {
     if (name === 'omp_remember') {
-      const memory = await ompFetch('/v1/memories', 'POST', {
+      const memory = await ompFetch<MemoryResult>('/v1/memories', 'POST', {
         content: args.content,
         type: args.type,
         source: { tool: 'claude', timestamp: new Date().toISOString() },
@@ -105,7 +126,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (name === 'omp_recall') {
-      const result = await ompFetch('/v1/memories/search', 'POST', {
+      const result = await ompFetch<ListOrSearchResult>('/v1/memories/search', 'POST', {
         q: args.query,
         type: args.type,
         namespace: args.namespace,
@@ -115,7 +136,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (result.memories.length === 0) {
         return { content: [{ type: 'text', text: 'No memories found.' }] }
       }
-      const formatted = result.memories.map((m: { id: string; type: string; content: string; created_at: string; tags: string[] }) =>
+      const formatted = result.memories.map((m) =>
         `[${m.id}] (${m.type}) ${m.content}\nSaved: ${m.created_at} | Tags: ${m.tags.join(', ') || 'none'}`
       ).join('\n\n')
       return { content: [{ type: 'text', text: formatted }] }
@@ -133,11 +154,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args.namespace) params.set('namespace', String(args.namespace))
       if (args.limit) params.set('limit', String(args.limit))
 
-      const result = await ompFetch(`/v1/memories?${params}`)
+      const result = await ompFetch<ListOrSearchResult>(`/v1/memories?${params}`)
       if (result.memories.length === 0) {
         return { content: [{ type: 'text', text: 'No memories stored yet.' }] }
       }
-      const formatted = result.memories.map((m: { id: string; type: string; content: string; created_at: string }) =>
+      const formatted = result.memories.map((m) =>
         `[${m.id}] (${m.type}) ${m.content.slice(0, 100)}${m.content.length > 100 ? '...' : ''}`
       ).join('\n')
       return { content: [{ type: 'text', text: `${result.total} memories total:\n\n${formatted}` }] }

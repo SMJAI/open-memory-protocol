@@ -38,22 +38,43 @@ Any AI tool that implements OMP can instantly share memory with any other OMP-co
 
 ## Quick Start
 
-### Run your memory server
+> **Requirements:** Node.js 22 or newer
+
+### 1. Run your memory server
+
+```bash
+git clone https://github.com/SMJAI/open-memory-protocol
+cd open-memory-protocol/packages/server
+npm install
+npm run dev
+```
+
+Your server is now running at `http://localhost:3456`. Test it:
+
+```bash
+curl http://localhost:3456/v1/health
+# {"status":"ok","version":"0.1","compliance":"OMP-Core","memories_count":0}
+```
+
+Or use Docker:
 
 ```bash
 docker run -p 3456:3456 -v omp-data:/data ghcr.io/smjai/omp-server
 ```
 
-### Connect Claude (via MCP)
+### 2. Connect Claude (via MCP)
 
-Add to your Claude config (`~/.claude/claude_desktop_config.json`):
+Add to your Claude Desktop config (`~/.claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "omp": {
       "command": "npx",
-      "args": ["@omp/mcp-adapter", "--server", "http://localhost:3456"]
+      "args": ["ts-node", "adapters/claude-mcp/src/index.ts"],
+      "env": {
+        "OMP_SERVER": "http://localhost:3456"
+      }
     }
   }
 }
