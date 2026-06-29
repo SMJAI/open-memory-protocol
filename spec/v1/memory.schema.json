@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/SMJAI/open-memory-protocol/spec/v1/memory.schema.json",
+  "title": "OMP Memory Object",
+  "description": "Open Memory Protocol v0.1 — canonical schema for a memory object",
+  "type": "object",
+  "required": ["id", "content", "type", "source", "created_at", "updated_at"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^mem_[a-z0-9]{16}$",
+      "description": "Unique memory identifier"
+    },
+    "content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "description": "The memory content in plain natural language"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["episodic", "semantic", "procedural"],
+      "description": "Classification of the memory"
+    },
+    "source": {
+      "type": "object",
+      "required": ["tool", "timestamp"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Identifier of the AI tool that created this memory"
+        },
+        "session_id": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Optional session or conversation ID from the source tool"
+        },
+        "user_id": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Optional user identifier within the source tool"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this memory was observed (ISO 8601 UTC)"
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 50,
+        "pattern": "^[a-z0-9_:\\-]+$"
+      },
+      "description": "Arbitrary tags for filtering and organisation"
+    },
+    "namespace": {
+      "type": ["string", "null"],
+      "maxLength": 100,
+      "pattern": "^[a-z0-9_:\\-]+$",
+      "description": "Optional grouping namespace (e.g. 'project:myapp')"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this memory was created in the OMP server (ISO 8601 UTC)"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this memory was last updated (ISO 8601 UTC)"
+    },
+    "expires_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this memory expires and should be deleted. Null means never."
+    },
+    "embedding": {
+      "type": "array",
+      "items": { "type": "number" },
+      "description": "Optional vector embedding of content for semantic search"
+    },
+    "metadata": {
+      "type": "object",
+      "maxProperties": 10,
+      "description": "Optional tool-specific extra data. Values must be JSON-serialisable."
+    }
+  }
+}

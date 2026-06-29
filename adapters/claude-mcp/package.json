@@ -1,0 +1,23 @@
+{
+  "name": "@omp/mcp-adapter",
+  "version": "0.1.0",
+  "description": "Open Memory Protocol — MCP adapter for Claude",
+  "main": "dist/index.js",
+  "bin": {
+    "omp-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
