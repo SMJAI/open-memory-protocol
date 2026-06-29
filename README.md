@@ -3,7 +3,7 @@
 > An open standard for portable, interoperable AI memory across tools, sessions, and devices.
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Spec Version](https://img.shields.io/badge/spec-v0.1-green.svg)](SPEC.md)
+[![Spec Version](https://img.shields.io/badge/spec-v0.2-green.svg)](SPEC.md)
 [![Discord](https://img.shields.io/badge/community-discord-7289da.svg)](#community)
 
 ---
@@ -70,11 +70,19 @@ Add to your Claude Desktop config (`~/.claude/claude_desktop_config.json`):
       "command": "npx",
       "args": ["omp-mcp"],
       "env": {
-        "OMP_SERVER": "http://localhost:3456"
+        "OMP_SERVER": "http://localhost:3456",
+        "OMP_API_KEY": "your-omp-key"
       }
     }
   }
 }
+```
+
+To enable AI-powered memory extraction and compression, also set these on the server:
+
+```bash
+OMP_AI_PROVIDER=anthropic   # or "openai"
+OMP_AI_API_KEY=sk-ant-...   # your Anthropic or OpenAI key
 ```
 
 ### Write a memory from any tool
@@ -229,9 +237,10 @@ OMP is designed on these principles:
 ## Roadmap
 
 - [x] v0.1 — Core spec, reference server, MCP adapter
-- [ ] v0.2 — Semantic search with embeddings, pgvector support
-- [ ] v0.3 — Memory namespacing (per-project memories)
-- [ ] v0.4 — Multi-user support, access control
+- [x] v0.2 — AI memory extraction, conversation compression, MCP resources + prompts
+- [ ] v0.3 — Semantic search with embeddings, pgvector support
+- [ ] v0.4 — Memory namespacing (per-project memories)
+- [ ] v0.5 — Multi-user support, access control
 - [ ] v1.0 — Stable spec, submitted to open standards body
 
 ---

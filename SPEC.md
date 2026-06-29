@@ -270,6 +270,72 @@ Import memories from an OMP export file.
 
 ---
 
+#### `POST /v1/extract`
+Extract memories from a conversation transcript using AI and save them automatically.
+
+**Request body:**
+```json
+{
+  "transcript": "Alice: I always use TypeScript. Bob: What about Python? Alice: Only for scripts.",
+  "provider": "anthropic",
+  "api_key": "sk-ant-...",
+  "source_tool": "claude"
+}
+```
+
+`provider` defaults to the server's `OMP_AI_PROVIDER` env var (default: `"anthropic"`).  
+`api_key` defaults to the server's `OMP_AI_API_KEY` env var.  
+`source_tool` defaults to `"omp-extract"`.
+
+**Response `201 Created`:**
+```json
+{
+  "extracted": 2,
+  "memories": [
+    { "id": "mem_...", "content": "User always uses TypeScript for production code", "type": "semantic", ... },
+    { "id": "mem_...", "content": "User uses Python only for scripts", "type": "semantic", ... }
+  ]
+}
+```
+
+**Error `422`:** `no_api_key` — no AI API key configured  
+**Error `502`:** `ai_error` — AI provider returned an error
+
+---
+
+#### `POST /v1/compress`
+Compress a long conversation into a single episodic memory summary using AI.
+
+**Request body:**
+```json
+{
+  "transcript": "...",
+  "provider": "anthropic",
+  "api_key": "sk-ant-...",
+  "source_tool": "claude"
+}
+```
+
+`provider`, `api_key`, and `source_tool` behave identically to `/v1/extract` above.
+
+**Response `201 Created`:**
+```json
+{
+  "memory": {
+    "id": "mem_...",
+    "content": "The session covered deploying the app to production. The team decided to use Docker Compose and set up GitHub Actions for CI/CD.",
+    "type": "episodic",
+    "tags": ["session-summary"],
+    ...
+  }
+}
+```
+
+**Error `422`:** `no_api_key` — no AI API key configured  
+**Error `502`:** `ai_error` — AI provider returned an error
+
+---
+
 #### `GET /v1/health`
 Server health check. No authentication required.
 
@@ -306,6 +372,8 @@ All errors use a consistent envelope:
 | `validation_error` | 422 | Request body failed schema validation |
 | `rate_limited` | 429 | Too many requests |
 | `internal_error` | 500 | Server-side failure |
+| `no_api_key` | 422 | No AI API key configured for extract/compress |
+| `ai_error` | 502 | AI provider returned an error |
 
 ---
 
@@ -356,4 +424,5 @@ An implementation is OMP-Core conformant if it:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.2 | 2026-06-30 | Added `POST /v1/extract` and `POST /v1/compress` AI endpoints; MCP adapter gains resources and prompts |
 | 0.1 | 2026-06-29 | Initial draft |

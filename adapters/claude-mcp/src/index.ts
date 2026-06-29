@@ -4,8 +4,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { z } from 'zod'
 
 const OMP_SERVER = process.env.OMP_SERVER ?? 'http://localhost:3456'
 const OMP_API_KEY = process.env.OMP_API_KEY ?? ''
@@ -28,6 +31,15 @@ interface ListOrSearchResult {
   total: number
 }
 
+interface ExtractResult {
+  extracted: number
+  memories: MemoryResult[]
+}
+
+interface CompressResult {
+  memory: MemoryResult
+}
+
 async function ompFetch<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const res = await fetch(`${OMP_SERVER}${path}`, {
     method,
@@ -46,9 +58,11 @@ async function ompFetch<T>(path: string, method = 'GET', body?: unknown): Promis
 }
 
 const server = new Server(
-  { name: 'omp-memory', version: '0.1.0' },
-  { capabilities: { tools: {} } }
+  { name: 'omp-memory', version: '0.2.0' },
+  { capabilities: { tools: {}, resources: {}, prompts: {} } }
 )
+
+// ── Tools ──────────────────────────────────────────────────────────────────────
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -101,6 +115,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           tags: { type: 'string', description: 'Comma-separated tags to filter by' },
           namespace: { type: 'string' },
           limit: { type: 'number', description: 'Max results (default 20)' },
+        },
+      },
+    },
+    {
+      name: 'omp_extract',
+      description: 'Extract and save memories from a conversation transcript using AI. Automatically identifies facts, preferences, and context worth remembering. Requires OMP_AI_API_KEY to be set on the server.',
+      inputSchema: {
+        type: 'object',
+        required: ['transcript'],
+        properties: {
+          transcript: { type: 'string', description: 'The conversation transcript to extract memories from' },
+          source_tool: { type: 'string', description: 'Name of the source tool (default: claude)' },
+        },
+      },
+    },
+    {
+      name: 'omp_compress',
+      description: 'Compress a long conversation into a single episodic memory summary. Use at the end of long sessions to preserve what was discussed. Requires OMP_AI_API_KEY to be set on the server.',
+      inputSchema: {
+        type: 'object',
+        required: ['transcript'],
+        properties: {
+          transcript: { type: 'string', description: 'The conversation transcript to compress into a summary' },
+          source_tool: { type: 'string', description: 'Name of the source tool (default: claude)' },
         },
       },
     },
@@ -164,6 +202,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: 'text', text: `${result.total} memories total:\n\n${formatted}` }] }
     }
 
+    if (name === 'omp_extract') {
+      const result = await ompFetch<ExtractResult>('/v1/extract', 'POST', {
+        transcript: args.transcript,
+        source_tool: args.source_tool ?? 'claude',
+      })
+      if (result.extracted === 0) {
+        return { content: [{ type: 'text', text: 'No memories extracted from transcript.' }] }
+      }
+      const formatted = result.memories.map((m) => `- [${m.type}] ${m.content}`).join('\n')
+      return {
+        content: [{ type: 'text', text: `Extracted and saved ${result.extracted} memories:\n\n${formatted}` }],
+      }
+    }
+
+    if (name === 'omp_compress') {
+      const result = await ompFetch<CompressResult>('/v1/compress', 'POST', {
+        transcript: args.transcript,
+        source_tool: args.source_tool ?? 'claude',
+      })
+      return {
+        content: [{
+          type: 'text',
+          text: `Session compressed and saved as memory (${result.memory.id}):\n\n"${result.memory.content}"`,
+        }],
+      }
+    }
+
     throw new Error(`Unknown tool: ${name}`)
   } catch (err) {
     return {
@@ -173,10 +238,100 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 })
 
+// ── Resources ──────────────────────────────────────────────────────────────────
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+  resources: [
+    {
+      uri: 'omp://memories/context',
+      name: 'Memory Context',
+      description: 'Your 20 most recent OMP memories — auto-injected as context at conversation start',
+      mimeType: 'text/plain',
+    },
+  ],
+}))
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const { uri } = request.params
+  if (uri !== 'omp://memories/context') {
+    throw new Error(`Unknown resource: ${uri}`)
+  }
+
+  const result = await ompFetch<ListOrSearchResult>('/v1/memories?limit=20')
+  if (result.memories.length === 0) {
+    return {
+      contents: [{ uri, mimeType: 'text/plain', text: 'No memories stored yet.' }],
+    }
+  }
+
+  const lines = result.memories.map((m) =>
+    `- [${m.type}] ${m.content}${m.tags.length ? ` (${m.tags.join(', ')})` : ''}`
+  )
+  return {
+    contents: [{
+      uri,
+      mimeType: 'text/plain',
+      text: `# OMP Memory Context (${result.memories.length} recent memories)\n\n${lines.join('\n')}`,
+    }],
+  }
+})
+
+// ── Prompts ────────────────────────────────────────────────────────────────────
+
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  prompts: [
+    {
+      name: 'load_memories',
+      description: 'Load relevant memories from OMP to provide context for the current task',
+      arguments: [
+        {
+          name: 'query',
+          description: 'What to search for (leave empty for recent memories)',
+          required: false,
+        },
+      ],
+    },
+  ],
+}))
+
+server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+  const query = (request.params.arguments as Record<string, string> | undefined)?.query
+
+  let memoryText: string
+  if (query) {
+    const result = await ompFetch<ListOrSearchResult>('/v1/memories/search', 'POST', {
+      q: query, limit: 10, mode: 'keyword',
+    })
+    memoryText = result.memories.length === 0
+      ? 'No relevant memories found.'
+      : result.memories.map((m) => `- [${m.type}] ${m.content}`).join('\n')
+  } else {
+    const result = await ompFetch<ListOrSearchResult>('/v1/memories?limit=10')
+    memoryText = result.memories.length === 0
+      ? 'No memories stored yet.'
+      : result.memories.map((m) => `- [${m.type}] ${m.content}`).join('\n')
+  }
+
+  return {
+    description: 'Memories from Open Memory Protocol',
+    messages: [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text: `Here are relevant memories from my memory store:\n\n${memoryText}\n\nPlease use this context as you help me.`,
+        },
+      },
+    ],
+  }
+})
+
+// ── Main ───────────────────────────────────────────────────────────────────────
+
 async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error('[OMP MCP] Open Memory Protocol adapter running')
+  console.error('[OMP MCP] Open Memory Protocol adapter v0.2.0 running')
   console.error(`[OMP MCP] Server: ${OMP_SERVER}`)
 }
 

@@ -2,6 +2,8 @@ import express from 'express'
 import path from 'path'
 import { SQLiteStorage } from './storage/sqlite'
 import { memoriesRouter } from './routes/memories'
+import { extractRouter } from './routes/extract'
+import { compressRouter } from './routes/compress'
 
 const PORT = parseInt(process.env.OMP_PORT ?? '3456')
 const DB_PATH = process.env.OMP_DB_PATH ?? path.join(process.cwd(), 'data', 'omp.db')
@@ -37,6 +39,8 @@ app.get('/v1/health', (_req, res) => {
 })
 
 app.use('/v1/memories', memoriesRouter(storage))
+app.use('/v1/extract', extractRouter(storage))
+app.use('/v1/compress', compressRouter(storage))
 
 app.get('/v1/export', (_req, res) => {
   const memories = storage.exportAll()

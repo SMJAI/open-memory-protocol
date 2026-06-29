@@ -1,6 +1,6 @@
 {
   "name": "omp-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Open Memory Protocol — MCP adapter for Claude and other AI tools",
   "main": "dist/index.js",
   "bin": {
