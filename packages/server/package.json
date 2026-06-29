@@ -1,17 +1,26 @@
 {
-  "name": "@omp/server",
+  "name": "omp-server",
   "version": "0.1.0",
   "description": "Open Memory Protocol — reference server",
   "main": "dist/index.js",
+  "files": ["dist", "src"],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "test": "jest"
+    "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=22.5.0"
   },
+  "keywords": ["omp", "open-memory-protocol", "ai-memory", "mcp", "llm", "self-hosted"],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SMJAI/open-memory-protocol",
+    "directory": "packages/server"
+  },
+  "homepage": "https://github.com/SMJAI/open-memory-protocol",
   "dependencies": {
     "express": "^4.18.3",
     "zod": "^3.22.4"

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install server deps
+        working-directory: packages/server
+        run: npm install
+
+      - name: Type-check server
+        working-directory: packages/server
+        run: npx tsc --noEmit
+
+      - name: Install MCP adapter deps
+        working-directory: adapters/claude-mcp
+        run: npm install
+
+      - name: Type-check MCP adapter
+        working-directory: adapters/claude-mcp
+        run: npx tsc --noEmit
+
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install and build server
+        working-directory: packages/server
+        run: npm install && npm run build
+
+      - name: Start server and test health endpoint
+        working-directory: packages/server
+        run: |
+          node dist/index.js &
+          sleep 2
+          curl -sf http://localhost:3456/v1/health | grep '"status":"ok"'
+
+      - name: Test create memory
+        run: |
+          curl -sf -X POST http://localhost:3456/v1/memories \
+            -H "Content-Type: application/json" \
+            -d '{"content":"CI test memory","type":"episodic","source":{"tool":"ci","timestamp":"2026-01-01T00:00:00Z"}}' \
+            | grep '"content":"CI test memory"'
