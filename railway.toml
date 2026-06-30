@@ -6,6 +6,4 @@ buildContext = "packages/server"
 [deploy]
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
-
-[[deploy.healthcheckPath]]
-path = "/v1/health"
+healthcheckPath = "/v1/health"
