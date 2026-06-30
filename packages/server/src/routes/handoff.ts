@@ -58,7 +58,13 @@ function fallbackBrief(sourceModel: string, targetModel: string, topic: string, 
   const src = displayName(sourceModel)
   const tgt = displayName(targetModel)
   const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content?.slice(0, 200) ?? ''
-  return `I was just discussing "${topic}" with ${src}. ${lastUserMsg ? `My last question was: "${lastUserMsg}"` : ''} Can you ${tgt === displayName(sourceModel) ? 'continue' : `pick up where ${src} left off`} and help me go deeper on this?`
+  // Strip any previously-generated brief prefix so we don't double-nest
+  const cleanTopic = topic
+    .replace(/^I was (just discussing|chatting about|talking about|exploring)\s+[""]?/i, '')
+    .replace(/[""].*$/, '')
+    .trim()
+    .slice(0, 120) || topic.slice(0, 120)
+  return `I was just discussing "${cleanTopic}" with ${src}. ${lastUserMsg ? `My last question was: "${lastUserMsg.slice(0, 150)}"` : ''} Can you ${tgt === displayName(sourceModel) ? 'continue' : `pick up where ${src} left off`} and help me go deeper on this?`
 }
 
 async function generateBrief(
