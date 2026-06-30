@@ -242,15 +242,74 @@ Read the full specification: [SPEC.md](SPEC.md)
 
 ## Adapters
 
-| Tool | Status | Install |
-|------|--------|---------|
-| Claude (MCP) | ✅ Available | `npx omp-mcp` |
-| Browser Extension | ✅ Available | [Load unpacked](adapters/browser-extension) — Chrome/Edge/Brave |
-| OpenAI Assistants | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
+| Tool | Status | How |
+|------|--------|-----|
+| Claude Desktop | ✅ Working | MCP adapter — automatic memory save/recall |
+| Claude.ai (web) | ✅ Working | OMP Bridge extension — handoff toast on new chat |
+| ChatGPT (web) | ✅ Working | OMP Bridge extension — reads DOM, saves conversation |
+| Gemini (web) | ✅ Working | OMP Bridge extension |
+| Perplexity (web) | ✅ Working | OMP Bridge extension |
+| Claude Code (CLI) | ✅ Working | `claude mcp add omp-mcp` — same MCP tools |
+| Any AI CLI (Aider etc.) | ✅ Working | `omp` CLI — inject context, save sessions |
 | Cursor | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
 | Copilot / VS Code | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
-| Gemini | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
 | Custom (REST) | ✅ Available | Any HTTP client |
+
+### Claude Code CLI
+
+Claude Code supports MCP servers natively. Add OMP in one command:
+
+```bash
+claude mcp add omp-mcp -- node /path/to/omp-mcp/dist/index.js
+```
+
+Or add it to your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "omp": {
+      "command": "npx",
+      "args": ["omp-mcp"],
+      "env": { "OMP_SERVER": "http://localhost:3456" }
+    }
+  }
+}
+```
+
+Claude Code then has the same `omp_remember`, `omp_recall`, and `omp_compress` tools available in every session.
+
+### Any AI CLI (Aider, shell scripts, custom agents)
+
+Install the `omp` CLI:
+
+```bash
+npm install -g omp-cli
+```
+
+Then use it to bridge OMP with any terminal-based AI:
+
+```bash
+# Inject your OMP memory context into any AI CLI
+omp context
+# → [Memory context from OMP]
+#   - [semantic] User is building Open Memory Protocol...
+
+# Start Aider with your OMP context pre-loaded
+omp context > /tmp/omp.md && aider --read /tmp/omp.md
+
+# Continue a ChatGPT conversation in any CLI
+omp handoff --from chatgpt
+# → "I was discussing MCP with ChatGPT. My last question was..."
+
+# Pipe directly into Claude Code
+claude "$(omp handoff --from chatgpt) — now implement this"
+
+# Save a CLI session to OMP when you're done
+omp save --model aider < session.txt
+```
+
+See [`adapters/cli`](adapters/cli) for full usage.
 
 ### OMP Bridge — Browser Extension
 

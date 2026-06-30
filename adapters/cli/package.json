@@ -1,0 +1,26 @@
+{
+  "name": "omp-cli",
+  "version": "0.1.0",
+  "description": "OMP command-line tool — inject memory context into any AI CLI",
+  "bin": {
+    "omp": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts"
+  },
+  "keywords": ["omp", "open-memory-protocol", "ai-memory", "cli", "aider", "llm"],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SMJAI/open-memory-protocol",
+    "directory": "adapters/cli"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2"
+  }
+}
