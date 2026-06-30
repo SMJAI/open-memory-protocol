@@ -21,7 +21,7 @@
       margin-bottom: 12px;
     }
     .count { font-weight: 700; color: #6366f1; font-size: 22px; }
-    .mem-list { margin-bottom: 14px; max-height: 120px; overflow-y: auto; }
+    .mem-list { margin-bottom: 14px; max-height: 100px; overflow-y: auto; }
     label { display: block; font-weight: 500; margin-bottom: 3px; font-size: 12px; }
     input {
       width: 100%; padding: 7px 9px;
@@ -35,10 +35,17 @@
       border: none; border-radius: 8px;
       cursor: pointer; font-size: 13px; font-weight: 500;
       transition: background 0.15s;
+      margin-bottom: 8px;
     }
     button:hover { background: #4f46e5; }
-    .footer { margin-top: 12px; font-size: 10px; color: #9ca3af; text-align: center; }
+    button.secondary {
+      background: white; color: #6366f1;
+      border: 1.5px solid #6366f1;
+    }
+    button.secondary:hover { background: #ede9fe; }
+    .footer { margin-top: 8px; font-size: 10px; color: #9ca3af; text-align: center; }
     a { color: #6366f1; text-decoration: none; }
+    .divider { border: none; border-top: 1px solid #f3f4f6; margin: 12px 0; }
   </style>
 </head>
 <body>
@@ -56,6 +63,8 @@
   </div>
 
   <div class="mem-list" id="memList"></div>
+
+  <hr class="divider">
 
   <label>OMP Server URL</label>
   <input id="server" type="text" placeholder="http://localhost:3456">
@@ -75,6 +84,9 @@
   </div>
 
   <button id="save">Save & Refresh</button>
+
+  <button class="secondary" id="saveConv">💬 Save this conversation to OMP</button>
+  <div id="saveConvStatus" style="font-size:11px;color:#6b7280;text-align:center;min-height:16px;margin-bottom:4px;"></div>
 
   <div class="footer">
     <a href="https://github.com/SMJAI/open-memory-protocol" target="_blank">

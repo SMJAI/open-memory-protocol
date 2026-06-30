@@ -4,6 +4,8 @@ import { SQLiteStorage } from './storage/sqlite'
 import { memoriesRouter } from './routes/memories'
 import { extractRouter } from './routes/extract'
 import { compressRouter } from './routes/compress'
+import { conversationsRouter } from './routes/conversations'
+import { handoffRouter } from './routes/handoff'
 
 const PORT = parseInt(process.env.OMP_PORT ?? '3456')
 const DB_PATH = process.env.OMP_DB_PATH ?? path.join(process.cwd(), 'data', 'omp.db')
@@ -41,6 +43,8 @@ app.get('/v1/health', (_req, res) => {
 app.use('/v1/memories', memoriesRouter(storage))
 app.use('/v1/extract', extractRouter(storage))
 app.use('/v1/compress', compressRouter(storage))
+app.use('/v1/conversations', conversationsRouter(storage))
+app.use('/v1/handoff', handoffRouter(storage))
 
 app.get('/v1/export', (_req, res) => {
   const memories = storage.exportAll()

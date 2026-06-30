@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "OMP Bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Open Memory Protocol — share AI memory across Claude, ChatGPT, Gemini and more",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "tabs"],
   "host_permissions": [
     "http://localhost:3456/*",
+    "http://127.0.0.1:3456/*",
     "https://claude.ai/*",
     "https://chatgpt.com/*",
     "https://gemini.google.com/*",

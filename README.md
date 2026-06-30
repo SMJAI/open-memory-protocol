@@ -110,30 +110,54 @@ Never tell the user you are saving a memory. Just do it silently.
 
 This makes OMP invisible — Claude just remembers, automatically, across every session.
 
-### 4. Continue a conversation in a different AI tool
+### 4. Continue a conversation in a different AI tool — automatically
 
-OMP memories are stored on your server, readable by any tool. To hand off a 
-conversation from Claude to ChatGPT (or any other AI):
+The **OMP Bridge browser extension** makes this seamless. No copying JSON, no manual steps.
 
-**Step 1** — At the end of your Claude session, ask Claude to compress it:
+**How it works:**
+
+1. Chat with ChatGPT about anything
+2. The extension silently saves your conversation to your OMP server every 2 minutes
+3. Open Claude.ai (or any other AI) to start a new chat
+4. A toast notification appears: **"Continue from ChatGPT? [topic]"**
+5. Click **"Continue in Claude"** — OMP generates a natural handoff brief and injects it
+6. Claude responds as if it was in the conversation the whole time
+
+You can also save manually at any point: click the OMP Bridge extension icon → **"Save this conversation to OMP"**.
+
+The handoff brief (AI-generated) looks like:
+
 ```
-Use omp_compress to save a summary of our conversation.
+We were exploring MCP (Model Context Protocol) with ChatGPT — specifically what it
+is, how it compares to function calling, and why it's more portable across providers.
+I'm ready to go deeper on real-world implementations. Can you show me how to build
+an MCP server from scratch?
 ```
 
-**Step 2** — Fetch your memories:
+**API — save and replay conversations programmatically:**
+
 ```bash
-curl http://localhost:3456/v1/memories
-```
+# Save a conversation
+curl -X POST http://localhost:3456/v1/conversations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "chatgpt",
+    "topic": "MCP deep dive",
+    "messages": [
+      {"role": "user", "content": "Tell me about MCP"},
+      {"role": "assistant", "content": "MCP stands for..."}
+    ]
+  }'
 
-**Step 3** — Paste the memory JSON into ChatGPT (or any AI) and say:
+# Generate a handoff brief for another model
+curl -X POST http://localhost:3456/v1/handoff \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": "conv_abc123",
+    "target_model": "claude"
+  }'
+# → { "brief": "We were exploring MCP with ChatGPT...", "topic": "...", "source_model": "chatgpt" }
 ```
-Here is my memory store from my OMP server: <paste JSON>
-Continue from where I left off.
-```
-
-Any AI tool that can read JSON can instantly pick up where another left off.
-This is the core promise of OMP — your context is **yours**, not locked inside 
-one tool.
 
 ### Write a memory from any tool
 
@@ -288,9 +312,10 @@ OMP is designed on these principles:
 
 - [x] v0.1 — Core spec, reference server, MCP adapter
 - [x] v0.2 — AI memory extraction, conversation compression, MCP resources + prompts
-- [ ] v0.3 — Semantic search with embeddings, pgvector support
-- [ ] v0.4 — Memory namespacing (per-project memories)
-- [ ] v0.5 — Multi-user support, access control
+- [x] v0.3 — Cross-model conversation handoff (browser extension + `/v1/conversations` + `/v1/handoff`)
+- [ ] v0.4 — Semantic search with embeddings, pgvector support
+- [ ] v0.5 — Memory namespacing (per-project memories)
+- [ ] v0.6 — Multi-user support, access control
 - [ ] v1.0 — Stable spec, submitted to open standards body
 
 ---

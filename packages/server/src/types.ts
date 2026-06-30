@@ -63,3 +63,26 @@ export interface SearchResult {
   total: number
   mode_used: string
 }
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface Conversation {
+  id: string
+  model: string
+  topic: string
+  messages: ConversationMessage[]
+  message_count: number
+  source_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateConversationInput {
+  model: string
+  topic?: string
+  messages: ConversationMessage[]
+  source_url?: string
+}

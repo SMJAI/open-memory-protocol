@@ -1,29 +1,29 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const serverInput = document.getElementById('server') as HTMLInputElement
-  const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement
-  const saveBtn = document.getElementById('save') as HTMLButtonElement
-  const statusEl = document.getElementById('status') as HTMLDivElement
-  const memCountEl = document.getElementById('memCount') as HTMLSpanElement
-  const memListEl = document.getElementById('memList') as HTMLDivElement
+  const serverInput  = document.getElementById('server')       as HTMLInputElement
+  const apiKeyInput  = document.getElementById('apiKey')       as HTMLInputElement
+  const saveBtn      = document.getElementById('save')         as HTMLButtonElement
+  const saveConvBtn  = document.getElementById('saveConv')     as HTMLButtonElement
+  const saveConvStatus = document.getElementById('saveConvStatus') as HTMLDivElement
+  const statusEl     = document.getElementById('status')       as HTMLDivElement
+  const memCountEl   = document.getElementById('memCount')     as HTMLSpanElement
+  const memListEl    = document.getElementById('memList')      as HTMLDivElement
+  const autoInjectCb = document.getElementById('autoInject')   as HTMLInputElement
+  const slider       = document.getElementById('toggleSlider') as HTMLSpanElement
 
-  const autoInjectCb = document.getElementById('autoInject') as HTMLInputElement
-  const slider = document.getElementById('toggleSlider') as HTMLSpanElement
-
-  function updateSlider(checked: boolean) {
-    slider.style.background = checked ? '#6366f1' : '#d1d5db'
-    const dot = slider.querySelector('span') as HTMLSpanElement | null
-    if (dot) dot.style.transform = checked ? 'translateX(16px)' : 'translateX(0)'
-  }
-
-  // Create the dot inside slider
+  // Build slider dot
   const dot = document.createElement('span')
   dot.style.cssText = 'position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s;'
   slider.appendChild(dot)
 
-  const result = await chrome.storage.sync.get(['ompServer', 'ompApiKey', 'ompAutoInject'])
-  serverInput.value = (result.ompServer as string) || 'http://localhost:3456'
-  apiKeyInput.value = (result.ompApiKey as string) || ''
-  autoInjectCb.checked = result.ompAutoInject === true
+  function updateSlider(checked: boolean) {
+    slider.style.background = checked ? '#6366f1' : '#d1d5db'
+    dot.style.transform = checked ? 'translateX(16px)' : 'translateX(0)'
+  }
+
+  const stored = await chrome.storage.sync.get(['ompServer', 'ompApiKey', 'ompAutoInject'])
+  serverInput.value   = (stored.ompServer  as string) || 'http://localhost:3456'
+  apiKeyInput.value   = (stored.ompApiKey  as string) || ''
+  autoInjectCb.checked = stored.ompAutoInject === true
   updateSlider(autoInjectCb.checked)
 
   autoInjectCb.addEventListener('change', () => updateSlider(autoInjectCb.checked))
@@ -81,5 +81,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadMemories()
     saveBtn.textContent = '✓ Saved'
     setTimeout(() => { saveBtn.textContent = 'Save & Refresh' }, 1500)
+  })
+
+  saveConvBtn.addEventListener('click', async () => {
+    saveConvBtn.disabled = true
+    saveConvBtn.textContent = '⏳ Capturing…'
+    saveConvStatus.textContent = ''
+
+    try {
+      const result = await chrome.runtime.sendMessage({
+        type: 'CAPTURE_AND_SAVE',
+        server: serverInput.value,
+        apiKey: apiKeyInput.value,
+      })
+
+      if (result?.error) {
+        saveConvStatus.textContent = '❌ ' + result.error
+        saveConvStatus.style.color = '#dc2626'
+      } else {
+        saveConvStatus.textContent = `✓ Saved ${result.message_count} messages`
+        saveConvStatus.style.color = '#16a34a'
+      }
+    } catch (e) {
+      saveConvStatus.textContent = '❌ Error: ' + (e instanceof Error ? e.message : String(e))
+      saveConvStatus.style.color = '#dc2626'
+    } finally {
+      saveConvBtn.disabled = false
+      saveConvBtn.textContent = '💬 Save this conversation to OMP'
+      setTimeout(() => { saveConvStatus.textContent = '' }, 4000)
+    }
   })
 })

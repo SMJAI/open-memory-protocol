@@ -1,14 +1,12 @@
 import { DatabaseSync } from 'node:sqlite'
 import path from 'path'
 import fs from 'fs'
-import type { Memory, CreateMemoryInput, UpdateMemoryInput, ListResult, SearchResult } from '../types'
+import type { Memory, CreateMemoryInput, UpdateMemoryInput, ListResult, SearchResult, Conversation, CreateConversationInput } from '../types'
 
-function generateId(): string {
+function generateId(prefix: string): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let id = 'mem_'
-  for (let i = 0; i < 16; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)]
-  }
+  let id = prefix + '_'
+  for (let i = 0; i < 16; i++) id += chars[Math.floor(Math.random() * chars.length)]
   return id
 }
 
@@ -26,6 +24,20 @@ export class SQLiteStorage {
   }
 
   private migrate() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id           TEXT PRIMARY KEY,
+        model        TEXT NOT NULL,
+        topic        TEXT NOT NULL DEFAULT '',
+        messages     TEXT NOT NULL DEFAULT '[]',
+        message_count INTEGER NOT NULL DEFAULT 0,
+        source_url   TEXT,
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_conversations_model   ON conversations(model);
+      CREATE INDEX IF NOT EXISTS idx_conversations_created ON conversations(created_at);
+    `)
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS memories (
         id          TEXT PRIMARY KEY,
@@ -91,7 +103,7 @@ export class SQLiteStorage {
 
   create(input: CreateMemoryInput): Memory {
     const now = new Date().toISOString()
-    const id = generateId()
+    const id = generateId('mem')
 
     this.db.prepare(`
       INSERT INTO memories (id, content, type, source_tool, source_session_id, source_user_id,
@@ -219,6 +231,64 @@ export class SQLiteStorage {
     return rows.map(r => this.rowToMemory(r))
   }
 
+  // ─── Conversations ──────────────────────────────────────────────────────────
+
+  private rowToConversation(row: Record<string, unknown>): Conversation {
+    return {
+      id: row.id as string,
+      model: row.model as string,
+      topic: row.topic as string,
+      messages: JSON.parse(row.messages as string) as Conversation['messages'],
+      message_count: row.message_count as number,
+      source_url: (row.source_url as string) ?? null,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string,
+    }
+  }
+
+  saveConversation(input: CreateConversationInput): Conversation {
+    const now = new Date().toISOString()
+    const id = generateId('conv')
+    const topic = (input.topic || input.messages[0]?.content || 'Conversation').slice(0, 200)
+
+    this.db.prepare(`
+      INSERT INTO conversations (id, model, topic, messages, message_count, source_url, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, input.model, topic, JSON.stringify(input.messages), input.messages.length, input.source_url ?? null, now, now)
+
+    return this.getConversation(id)!
+  }
+
+  getConversation(id: string): Conversation | null {
+    const row = this.db.prepare('SELECT * FROM conversations WHERE id = ?').get(id) as Record<string, unknown> | undefined
+    return row ? this.rowToConversation(row) : null
+  }
+
+  listConversations(opts: { model?: string; exclude_model?: string; since?: string; limit?: number }): Conversation[] {
+    const conditions: string[] = ['1=1']
+    const params: (string | number)[] = []
+
+    if (opts.model)         { conditions.push('model = ?');    params.push(opts.model) }
+    if (opts.exclude_model) { conditions.push('model != ?');   params.push(opts.exclude_model) }
+    if (opts.since)         { conditions.push('created_at >= ?'); params.push(opts.since) }
+
+    const where = conditions.join(' AND ')
+    const limit = opts.limit ?? 10
+
+    const rows = this.db.prepare(
+      `SELECT * FROM conversations WHERE ${where} ORDER BY created_at DESC LIMIT ?`
+    ).all(...params, limit) as Record<string, unknown>[]
+
+    return rows.map(r => this.rowToConversation(r))
+  }
+
+  deleteConversation(id: string): boolean {
+    const result = this.db.prepare('DELETE FROM conversations WHERE id = ?').run(id)
+    return result.changes > 0
+  }
+
+  // ─── Memories ────────────────────────────────────────────────────────────────
+
   importMany(memories: Memory[], conflict: 'skip' | 'overwrite' | 'duplicate'): { imported: number; skipped: number } {
     let imported = 0
     let skipped = 0
@@ -230,7 +300,7 @@ export class SQLiteStorage {
         if (conflict === 'skip') { skipped++; continue }
         if (conflict === 'overwrite') { this.delete(m.id) }
         if (conflict === 'duplicate') {
-          m.id = generateId()
+          m.id = generateId('mem')
         }
       }
 
