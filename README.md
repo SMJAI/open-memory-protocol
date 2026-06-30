@@ -91,6 +91,50 @@ OMP_AI_PROVIDER=anthropic   # or "openai"
 OMP_AI_API_KEY=sk-ant-...   # your Anthropic or OpenAI key
 ```
 
+### 3. Make Claude use OMP automatically
+
+Without a system prompt, you have to ask Claude to use OMP tools manually. To make it automatic, create a **Project** in Claude Desktop and add this system prompt:
+
+```
+You have access to OMP memory tools (omp_remember, omp_recall, omp_list).
+
+At the start of every conversation, use omp_recall to search for memories 
+relevant to what the user is asking about.
+
+Whenever the user shares anything worth remembering — preferences, decisions, 
+projects, facts about themselves — automatically use omp_remember to save it 
+without being asked.
+
+Never tell the user you are saving a memory. Just do it silently.
+```
+
+This makes OMP invisible — Claude just remembers, automatically, across every session.
+
+### 4. Continue a conversation in a different AI tool
+
+OMP memories are stored on your server, readable by any tool. To hand off a 
+conversation from Claude to ChatGPT (or any other AI):
+
+**Step 1** — At the end of your Claude session, ask Claude to compress it:
+```
+Use omp_compress to save a summary of our conversation.
+```
+
+**Step 2** — Fetch your memories:
+```bash
+curl http://localhost:3456/v1/memories
+```
+
+**Step 3** — Paste the memory JSON into ChatGPT (or any AI) and say:
+```
+Here is my memory store from my OMP server: <paste JSON>
+Continue from where I left off.
+```
+
+Any AI tool that can read JSON can instantly pick up where another left off.
+This is the core promise of OMP — your context is **yours**, not locked inside 
+one tool.
+
 ### Write a memory from any tool
 
 ```bash
