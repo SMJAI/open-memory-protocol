@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "OMP Bridge",
+  "version": "0.1.0",
+  "description": "Open Memory Protocol — share AI memory across Claude, ChatGPT, Gemini and more",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "http://localhost:3456/*",
+    "https://claude.ai/*",
+    "https://chatgpt.com/*",
+    "https://gemini.google.com/*",
+    "https://perplexity.ai/*"
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://gemini.google.com/*",
+        "https://perplexity.ai/*"
+      ],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "OMP Bridge"
+  }
+}

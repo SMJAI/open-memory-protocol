@@ -1,0 +1,21 @@
+{
+  "name": "omp-browser-extension",
+  "version": "0.1.0",
+  "description": "OMP Bridge — share AI memory across Claude, ChatGPT, Gemini and more",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch"
+  },
+  "keywords": ["omp", "open-memory-protocol", "browser-extension", "ai-memory", "chrome-extension"],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SMJAI/open-memory-protocol",
+    "directory": "adapters/browser-extension"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.3"
+  }
+}

@@ -221,11 +221,29 @@ Read the full specification: [SPEC.md](SPEC.md)
 | Tool | Status | Install |
 |------|--------|---------|
 | Claude (MCP) | ✅ Available | `npx omp-mcp` |
+| Browser Extension | ✅ Available | [Load unpacked](adapters/browser-extension) — Chrome/Edge/Brave |
 | OpenAI Assistants | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
 | Cursor | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
 | Copilot / VS Code | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
 | Gemini | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
 | Custom (REST) | ✅ Available | Any HTTP client |
+
+### OMP Bridge — Browser Extension
+
+The browser extension brings OMP to the **web versions** of every AI tool with zero setup on their side.
+
+**What it does:**
+- Shows a floating 🧠 button on Claude.ai, ChatGPT, Gemini, and Perplexity
+- Displays your OMP memories from your server
+- One click to inject your memories into any chat — the AI instantly knows your context
+- Works cross-model: inject the same memories into ChatGPT that Claude saved
+
+**Install (Chrome / Edge / Brave):**
+```bash
+cd adapters/browser-extension
+npm install && npm run build
+```
+Then open `chrome://extensions` → Enable **Developer mode** → **Load unpacked** → select the `adapters/browser-extension` folder.
 
 **Want to build one?** An adapter is typically 100–200 lines — read [`CONTRIBUTING.md`](CONTRIBUTING.md) and use [`adapters/claude-mcp`](adapters/claude-mcp) as a template.
 
