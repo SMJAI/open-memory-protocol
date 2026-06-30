@@ -145,15 +145,32 @@ function createWidget(memories: Memory[]) {
 }
 
 async function init() {
-  const result = await chrome.storage.sync.get(['ompServer', 'ompApiKey'])
+  const result = await chrome.storage.sync.get(['ompServer', 'ompApiKey', 'ompAutoInject'])
   const server = (result.ompServer as string) || 'http://localhost:3456'
   const apiKey = (result.ompApiKey as string) || ''
+  const autoInject = result.ompAutoInject === true
 
+  let memories: Memory[] = []
   try {
     const response = await chrome.runtime.sendMessage({ type: 'FETCH_MEMORIES', server, apiKey })
-    createWidget((response?.memories as Memory[]) || [])
+    memories = (response?.memories as Memory[]) || []
   } catch {
-    createWidget([])
+    memories = []
+  }
+
+  createWidget(memories)
+
+  if (autoInject && memories.length > 0) {
+    // Wait for input to be available then inject silently
+    const tryInject = (attempts = 0) => {
+      const input = getInputElement()
+      if (input) {
+        injectText(input, formatMemories(memories))
+      } else if (attempts < 10) {
+        setTimeout(() => tryInject(attempts + 1), 500)
+      }
+    }
+    setTimeout(() => tryInject(), 800)
   }
 }
 
