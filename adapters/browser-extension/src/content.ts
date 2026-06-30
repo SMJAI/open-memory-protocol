@@ -50,22 +50,45 @@ function readConversation(): { model: string; topic: string; messages: Conversat
       if (content.length > 2) messages.push({ role, content: content.slice(0, 3000) })
     })
   } else if (model === 'claude') {
-    // Claude.ai — try multiple selector strategies
-    const humanEls = [
-      ...Array.from(document.querySelectorAll<HTMLElement>('[data-testid*="human"]')),
-      ...Array.from(document.querySelectorAll<HTMLElement>('div[class*="Human"]')),
-      ...Array.from(document.querySelectorAll<HTMLElement>('[class*="user-message"]')),
-    ]
-    const aiEls = [
-      ...Array.from(document.querySelectorAll<HTMLElement>('[data-testid*="assistant"]')),
-      ...Array.from(document.querySelectorAll<HTMLElement>('div[class*="Assistant"]')),
-      ...Array.from(document.querySelectorAll<HTMLElement>('[class*="ai-message"]')),
-    ]
+    // Claude.ai — cascade through selector strategies until we find messages
+    const unique = <T extends Element>(els: T[]) => [...new Set(els)]
 
-    // Deduplicate by element identity
-    const unique = (els: HTMLElement[]) => [...new Set(els)]
-    const humans = unique(humanEls).map(el => el.textContent?.trim() ?? '').filter(t => t.length > 2)
-    const ais = unique(aiEls).map(el => el.textContent?.trim() ?? '').filter(t => t.length > 2)
+    const trySelectors = (selectors: string[]): HTMLElement[] => {
+      for (const sel of selectors) {
+        try {
+          const found = Array.from(document.querySelectorAll<HTMLElement>(sel))
+            .filter(el => (el.textContent?.trim().length ?? 0) > 10)
+          if (found.length > 0) return unique(found)
+        } catch { /* invalid selector — skip */ }
+      }
+      return []
+    }
+
+    const userEls = trySelectors([
+      '[data-testid="user-message"]',
+      '[data-testid*="human"]',
+      '[class*="human-turn"]',
+      '[class*="HumanMessage"]',
+      '[class*="UserMessage"]',
+      'div[class*="Human"]',
+      '[class*="user-message"]',
+    ])
+
+    const aiEls = trySelectors([
+      '[data-testid="assistant-message"]',
+      '[data-testid*="assistant"]',
+      '[data-is-streaming]',
+      '[class*="AssistantMessage"]',
+      '[class*="ClaudeMessage"]',
+      '[class*="ai-response"]',
+      'div[class*="Assistant"]',
+      // Claude.ai renders prose responses in these
+      'div.prose',
+      '[class*="prose"]',
+    ])
+
+    const humans = userEls.map(el => el.textContent?.trim() ?? '').filter(t => t.length > 2)
+    const ais    = aiEls.map(el => el.textContent?.trim() ?? '').filter(t => t.length > 2)
 
     const maxLen = Math.max(humans.length, ais.length)
     for (let i = 0; i < maxLen; i++) {
@@ -363,7 +386,7 @@ async function init() {
           since,
         })
         const convs: SavedConversation[] = resp?.conversations ?? []
-        const latest = convs.find(c => c.message_count >= 2)
+        const latest = convs.find(c => c.message_count >= 1)
         if (latest) showHandoffToast(latest, server, apiKey)
       } catch {
         // server offline — skip
