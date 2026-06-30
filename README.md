@@ -61,7 +61,13 @@ curl http://localhost:3456/v1/health
 
 ### 2. Connect Claude (via MCP)
 
-Add to your Claude Desktop config (`~/.claude/claude_desktop_config.json`):
+Find your Claude Desktop config file:
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+- **Windows (Store app):** `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
+
+Add to it:
 
 ```json
 {
