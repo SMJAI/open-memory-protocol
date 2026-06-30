@@ -256,6 +256,7 @@
 
   async function getHandoffFor(convId, sourceModel) {
     toast('Generating handoff brief…', 5000)
+    let brief = null
     try {
       const res = await fetch('/v1/handoff', {
         method: 'POST',
@@ -263,14 +264,44 @@
         body: JSON.stringify({ conversation_id: convId, target_model: 'assistant' }),
       })
       const data = await res.json()
-      if (data.brief) {
-        await navigator.clipboard.writeText(data.brief)
-        toast('✅ Brief copied — paste into any AI to continue', 3500)
-      } else {
-        toast('Could not generate brief')
-      }
+      brief = data.brief || null
     } catch {
-      toast('Error — is the server running?')
+      toast('Cannot reach server — is it running?')
+      return
+    }
+    if (!brief) { toast('Could not generate brief'); return }
+    // Show brief in a textarea so user can copy manually on iOS if clipboard fails
+    showBriefModal(brief)
+  }
+
+  function showBriefModal(brief) {
+    const existing = document.getElementById('briefModal')
+    if (existing) existing.remove()
+    const modal = document.createElement('div')
+    modal.id = 'briefModal'
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-end;padding:16px;'
+    modal.innerHTML = `
+      <div style="background:white;border-radius:20px;padding:20px;width:100%;max-height:70vh;display:flex;flex-direction:column;gap:12px;">
+        <div style="font-weight:700;font-size:16px;">Handoff Brief</div>
+        <textarea id="briefText" readonly style="flex:1;min-height:140px;border:1.5px solid #e5e7eb;border-radius:10px;padding:12px;font-size:14px;line-height:1.5;resize:none;color:#111;">${brief}</textarea>
+        <button onclick="copyBrief()" class="btn btn-primary" style="margin:0;">📋 Copy to clipboard</button>
+        <button onclick="document.getElementById('briefModal').remove()" class="btn btn-outline" style="margin:0;">Close</button>
+      </div>`
+    document.body.appendChild(modal)
+    // auto-select text for easy manual copy
+    setTimeout(() => { const ta = document.getElementById('briefText'); if (ta) { ta.focus(); ta.select() } }, 100)
+  }
+
+  async function copyBrief() {
+    const ta = document.getElementById('briefText')
+    if (!ta) return
+    try {
+      await navigator.clipboard.writeText(ta.value)
+      toast('✅ Copied — paste into any AI app', 3000)
+    } catch {
+      ta.focus(); ta.select()
+      document.execCommand('copy')
+      toast('✅ Copied!')
     }
   }
 

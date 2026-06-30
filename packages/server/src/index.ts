@@ -8,7 +8,7 @@ import { compressRouter } from './routes/compress'
 import { conversationsRouter } from './routes/conversations'
 import { handoffRouter } from './routes/handoff'
 
-const PORT = parseInt(process.env.OMP_PORT ?? '3456')
+const PORT = parseInt(process.env.PORT ?? process.env.OMP_PORT ?? '3456')
 const DB_PATH = process.env.OMP_DB_PATH ?? path.join(process.cwd(), 'data', 'omp.db')
 const API_KEY = process.env.OMP_API_KEY ?? ''
 

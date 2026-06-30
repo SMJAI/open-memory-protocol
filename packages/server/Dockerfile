@@ -12,7 +12,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY public ./public
 
-ENV OMP_PORT=3456
 ENV OMP_DB_PATH=/data/omp.db
 
 EXPOSE 3456
