@@ -1,18 +1,23 @@
 #!/usr/bin/env node
 /**
  * omp — Open Memory Protocol CLI
- * Brings OMP memory to any AI CLI tool (Aider, Claude Code, custom agents).
+ * Brings OMP memory to any AI coding tool.
  *
  * Usage:
- *   omp context              Print memory context ready to paste or pipe
+ *   omp context              Print memory context (pipe into any AI)
+ *   omp inject [--for TOOL]  Write context file for a specific AI tool
  *   omp recent               List recent saved conversations
  *   omp handoff [--from X]   Generate a handoff brief from the last conversation
  *   omp save [--model X]     Read stdin and save as a conversation
  *   omp remember "text"      Save a single memory
  *   omp recall "query"       Search memories
+ *   omp setup claude-code    Wire up OMP MCP server into Claude Code
  */
 
 import * as readline from 'readline'
+import * as fs from 'fs'
+import * as path from 'path'
+import * as os from 'os'
 
 const SERVER  = process.env.OMP_SERVER  ?? 'http://localhost:3456'
 const API_KEY = process.env.OMP_API_KEY ?? ''
@@ -160,6 +165,173 @@ async function cmdRemember(args: string[]) {
   console.log(`✓ Memory saved — id: ${mem.id}`)
 }
 
+async function cmdInject(args: string[]) {
+  const forIdx = args.indexOf('--for')
+  const tool   = forIdx !== -1 ? args[forIdx + 1]?.toLowerCase() : 'file'
+  const cwd    = process.cwd()
+
+  // Build the context block
+  const data = await get('/v1/memories?limit=30') as { memories: Array<{ type: string; content: string; tags: string[] }> }
+  const convData = await get('/v1/conversations?limit=3') as { conversations: Array<{ model: string; topic: string; message_count: number }> }
+
+  const memLines = data.memories.length
+    ? data.memories.map(m => `- [${m.type}] ${m.content}`).join('\n')
+    : '- No memories saved yet.'
+
+  const convLines = convData.conversations.length
+    ? convData.conversations.map(c => `- [${c.model}] ${c.topic.slice(0, 80)} (${c.message_count} msgs)`).join('\n')
+    : '- No recent conversations.'
+
+  const block = [
+    '<!-- OMP: Open Memory Protocol context — auto-generated, do not edit manually -->',
+    '## My Memory Context (from OMP)',
+    '',
+    '### Memories',
+    memLines,
+    '',
+    '### Recent conversations across AI tools',
+    convLines,
+    '',
+    `_Updated: ${new Date().toLocaleString()}_`,
+    '<!-- /OMP -->',
+  ].join('\n')
+
+  const targets: Record<string, { file: string; label: string; wrap?: (block: string) => string }> = {
+    cursor: {
+      file: path.join(cwd, '.cursorrules'),
+      label: 'Cursor (.cursorrules)',
+    },
+    copilot: {
+      file: path.join(cwd, '.github', 'copilot-instructions.md'),
+      label: 'GitHub Copilot (.github/copilot-instructions.md)',
+    },
+    codex: {
+      file: path.join(cwd, 'AGENTS.md'),
+      label: 'Codex CLI (AGENTS.md)',
+    },
+    'claude-code': {
+      file: path.join(cwd, 'CLAUDE.md'),
+      label: 'Claude Code (CLAUDE.md)',
+    },
+    continue: {
+      file: path.join(cwd, '.continue', 'context.md'),
+      label: 'Continue.dev (.continue/context.md)',
+    },
+    file: {
+      file: path.join(cwd, 'omp-context.md'),
+      label: 'Generic file (omp-context.md)',
+    },
+  }
+
+  const target = targets[tool ?? 'file'] ?? targets['file']
+
+  // Replace existing OMP block or append
+  const filePath = target.file
+  const dir = path.dirname(filePath)
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+
+  let existing = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : ''
+
+  const OMP_START = '<!-- OMP:'
+  const OMP_END   = '<!-- /OMP -->'
+
+  if (existing.includes(OMP_START)) {
+    const startIdx = existing.indexOf(OMP_START)
+    const endIdx   = existing.indexOf(OMP_END)
+    existing = existing.slice(0, startIdx).trimEnd() + '\n\n' + block + '\n' + existing.slice(endIdx + OMP_END.length).trimStart()
+  } else {
+    existing = existing.trimEnd() + (existing ? '\n\n' : '') + block + '\n'
+  }
+
+  fs.writeFileSync(filePath, existing, 'utf8')
+  console.log(`✓ OMP context written to ${target.label}`)
+  console.log(`  ${filePath}`)
+  console.log(`  ${data.memories.length} memories, ${convData.conversations.length} recent conversations`)
+}
+
+async function cmdSetup(args: string[]) {
+  const tool = args[0]?.toLowerCase()
+
+  if (tool === 'claude-code') {
+    // Find the omp-mcp adapter path
+    const adapterPaths = [
+      path.join(__dirname, '..', '..', 'claude-mcp', 'dist', 'index.js'),
+      path.join(os.homedir(), 'OpenMemoryProtocol', 'adapters', 'claude-mcp', 'dist', 'index.js'),
+      'C:\\OpenMemoryProtocol\\adapters\\claude-mcp\\dist\\index.js',
+    ]
+    const adapterPath = adapterPaths.find(p => fs.existsSync(p))
+
+    if (!adapterPath) {
+      console.log('OMP MCP adapter not found at expected paths.')
+      console.log('Add it manually to your Claude Code config:')
+      console.log('')
+      console.log('  claude mcp add omp -- node /path/to/omp-mcp/dist/index.js')
+      console.log('')
+      console.log('Or add to .mcp.json in your project:')
+      console.log(JSON.stringify({
+        mcpServers: {
+          omp: {
+            command: 'npx',
+            args: ['omp-mcp'],
+            env: { OMP_SERVER: SERVER },
+          },
+        },
+      }, null, 2))
+      return
+    }
+
+    console.log('Found OMP MCP adapter at:', adapterPath)
+    console.log('')
+    console.log('Run this command to add OMP to Claude Code:')
+    console.log('')
+    console.log(`  claude mcp add omp -- node "${adapterPath}"`)
+    console.log('')
+    console.log('Or add this to your project .mcp.json:')
+    console.log(JSON.stringify({
+      mcpServers: {
+        omp: {
+          command: 'node',
+          args: [adapterPath],
+          env: { OMP_SERVER: SERVER },
+        },
+      },
+    }, null, 2))
+    return
+  }
+
+  // Generic setup help
+  console.log(`
+OMP setup for AI coding tools:
+
+CLAUDE CODE (VS Code / terminal)
+  claude mcp add omp -- npx omp-mcp
+  → Gives Claude Code omp_remember, omp_recall, omp_compress tools
+
+CURSOR
+  omp inject --for cursor
+  → Writes your memories to .cursorrules (auto-read by Cursor)
+
+GITHUB COPILOT
+  omp inject --for copilot
+  → Writes to .github/copilot-instructions.md (Copilot reads this per-repo)
+
+CODEX CLI (OpenAI)
+  omp inject --for codex          # write context to AGENTS.md
+  codex                           # Codex reads AGENTS.md automatically
+  # OR pipe directly:
+  codex --instructions "$(omp context)"
+
+CONTINUE.DEV
+  omp inject --for continue
+  → Writes to .continue/context.md
+
+ANY OTHER TOOL
+  omp context | <your-ai-cli>
+  # OR
+  omp inject   # writes to omp-context.md, include it manually
+`)
+}
+
 async function cmdRecall(args: string[]) {
   const query = args.filter(a => !a.startsWith('-')).join(' ')
   if (!query) {
@@ -179,27 +351,43 @@ function help() {
 omp — Open Memory Protocol CLI
 
 COMMANDS
-  omp context                    Print your OMP memories (pipe into any AI)
-  omp recent                     List recently saved conversations
-  omp handoff [--from MODEL]     Generate handoff brief from last conversation
-  omp save [--model MODEL]       Read stdin, save as a conversation
-  omp remember "text"            Save a single memory
-  omp recall "query"             Search your memories
+  omp context                       Print your OMP memories (pipe into any AI)
+  omp inject [--for TOOL]           Write memory context file for a specific tool
+  omp setup [TOOL]                  Show setup instructions for an AI tool
+  omp recent                        List recently saved conversations
+  omp handoff [--from MODEL]        Generate handoff brief from last conversation
+  omp save [--model MODEL]          Read stdin, save as a conversation
+  omp remember "text"               Save a single memory
+  omp recall "query"                Search your memories
+
+SUPPORTED TOOLS (omp inject --for ...)
+  cursor       → .cursorrules
+  copilot      → .github/copilot-instructions.md
+  codex        → AGENTS.md
+  claude-code  → CLAUDE.md
+  continue     → .continue/context.md
+  file         → omp-context.md (default)
 
 EXAMPLES
-  # See your memories
-  omp context
+  # Wire up Claude Code (VS Code / terminal)
+  omp setup claude-code
 
-  # Start Aider with OMP context
-  omp context > /tmp/omp.md && aider --read /tmp/omp.md
+  # Inject memories into Cursor for the current project
+  omp inject --for cursor
 
-  # Continue a ChatGPT conversation in Claude Code
+  # Use Codex CLI with OMP context
+  omp inject --for codex && codex
+
+  # Pipe directly into any AI CLI
+  codex --instructions "$(omp context)"
+
+  # Continue a ChatGPT chat in Claude Code
   claude "$(omp handoff --from chatgpt)"
 
   # Save an Aider session to OMP
   omp save --model aider < session.txt
 
-  # Quick memory
+  # Quick memory save
   omp remember "Decided to use PostgreSQL over SQLite for production"
 
 ENVIRONMENT
@@ -216,6 +404,8 @@ async function main() {
   try {
     switch (cmd) {
       case 'context':   await cmdContext(); break
+      case 'inject':    await cmdInject(args); break
+      case 'setup':     await cmdSetup(args); break
       case 'recent':    await cmdRecent(); break
       case 'handoff':   await cmdHandoff(args); break
       case 'save':      await cmdSave(args); break

@@ -255,31 +255,7 @@ Read the full specification: [SPEC.md](SPEC.md)
 | Copilot / VS Code | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
 | Custom (REST) | ✅ Available | Any HTTP client |
 
-### Claude Code CLI
-
-Claude Code supports MCP servers natively. Add OMP in one command:
-
-```bash
-claude mcp add omp-mcp -- node /path/to/omp-mcp/dist/index.js
-```
-
-Or add it to your project's `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "omp": {
-      "command": "npx",
-      "args": ["omp-mcp"],
-      "env": { "OMP_SERVER": "http://localhost:3456" }
-    }
-  }
-}
-```
-
-Claude Code then has the same `omp_remember`, `omp_recall`, and `omp_compress` tools available in every session.
-
-### Any AI CLI (Aider, shell scripts, custom agents)
+### AI Coding Tools (Claude Code, Cursor, Copilot, Codex CLI)
 
 Install the `omp` CLI:
 
@@ -287,29 +263,49 @@ Install the `omp` CLI:
 npm install -g omp-cli
 ```
 
-Then use it to bridge OMP with any terminal-based AI:
-
+**Claude Code** (VS Code or terminal) — full MCP integration:
 ```bash
-# Inject your OMP memory context into any AI CLI
-omp context
-# → [Memory context from OMP]
-#   - [semantic] User is building Open Memory Protocol...
+omp setup claude-code   # prints the exact command to run
+# then run:
+claude mcp add omp -- npx omp-mcp
+```
+Claude Code gets `omp_remember`, `omp_recall`, `omp_compress` as tools — same as Claude Desktop.
 
-# Start Aider with your OMP context pre-loaded
-omp context > /tmp/omp.md && aider --read /tmp/omp.md
-
-# Continue a ChatGPT conversation in any CLI
-omp handoff --from chatgpt
-# → "I was discussing MCP with ChatGPT. My last question was..."
-
-# Pipe directly into Claude Code
-claude "$(omp handoff --from chatgpt) — now implement this"
-
-# Save a CLI session to OMP when you're done
-omp save --model aider < session.txt
+**Cursor** — injects memories into `.cursorrules`:
+```bash
+omp inject --for cursor   # run this in your project folder
+# Cursor reads .cursorrules automatically on every chat
 ```
 
-See [`adapters/cli`](adapters/cli) for full usage.
+**GitHub Copilot** — injects memories into `.github/copilot-instructions.md`:
+```bash
+omp inject --for copilot
+```
+
+**OpenAI Codex CLI** — injects into `AGENTS.md` (auto-read by Codex):
+```bash
+omp inject --for codex && codex
+# OR pipe directly:
+codex --instructions "$(omp context)"
+```
+
+**Continue.dev** and any other CLI:
+```bash
+omp context | <your-ai-cli>   # pipe memories as context
+omp handoff --from chatgpt    # continue a web conversation in a CLI
+```
+
+**Cross-tool handoff (web → CLI or CLI → web):**
+```bash
+# ChatGPT → Claude Code
+claude "$(omp handoff --from chatgpt)"
+
+# Claude.ai → Codex
+codex --instructions "$(omp handoff --from claude)"
+
+# Save any CLI session back to OMP
+omp save --model codex < session.txt
+```
 
 ### OMP Bridge — Browser Extension
 
