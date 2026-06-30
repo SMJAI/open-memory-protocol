@@ -15,6 +15,5 @@ COPY public ./public
 ENV OMP_DB_PATH=/data/omp.db
 
 EXPOSE 3456
-VOLUME ["/data"]
 
 CMD ["node", "dist/index.js"]
