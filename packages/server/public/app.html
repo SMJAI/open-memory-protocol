@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="OMP">
+  <meta name="theme-color" content="#6366f1">
+  <title>OMP Bridge</title>
+  <link rel="manifest" href="/manifest.json">
+  <style>
+    :root { --p: #6366f1; --pd: #4f46e5; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      color: #111;
+      min-height: 100dvh;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+    header {
+      background: var(--p);
+      color: white;
+      padding: 14px 20px;
+      padding-top: calc(14px + env(safe-area-inset-top));
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 { font-size: 20px; font-weight: 700; }
+    #statusDot { width: 8px; height: 8px; border-radius: 50%; background: #a5b4fc; margin-left: auto; flex-shrink: 0; }
+    #statusDot.ok { background: #4ade80; }
+    #statusDot.err { background: #f87171; }
+    .card {
+      background: white;
+      border-radius: 16px;
+      margin: 12px 16px 0;
+      padding: 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .count-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+    .count-num { font-size: 52px; font-weight: 800; color: var(--p); line-height: 1; }
+    .count-label { font-size: 14px; color: #6b7280; }
+    .btn {
+      display: block; width: 100%; padding: 15px;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 600;
+      cursor: pointer; transition: opacity .15s;
+      margin-bottom: 10px;
+    }
+    .btn:last-child { margin-bottom: 0; }
+    .btn:active { opacity: 0.75; }
+    .btn-primary { background: var(--p); color: white; }
+    .btn-outline { background: white; color: var(--p); border: 2px solid var(--p); }
+    .btn:disabled { opacity: .45; }
+    .section-title {
+      font-size: 11px; font-weight: 700;
+      color: #9ca3af; text-transform: uppercase;
+      letter-spacing: .06em; margin-bottom: 12px;
+    }
+    .mem-item {
+      padding: 10px 0; border-bottom: 1px solid #f3f4f6;
+      font-size: 14px; line-height: 1.5; color: #374151;
+    }
+    .mem-item:last-child { border-bottom: none; }
+    .tag {
+      display: inline-block; background: #ede9fe; color: #7c3aed;
+      border-radius: 4px; padding: 1px 6px; font-size: 10px;
+      margin-right: 5px; font-weight: 600;
+    }
+    .conv-item {
+      padding: 12px 0; border-bottom: 1px solid #f3f4f6;
+      cursor: pointer;
+    }
+    .conv-item:last-child { border-bottom: none; }
+    .conv-model { font-size: 11px; font-weight: 700; color: var(--p); text-transform: uppercase; }
+    .conv-topic { font-size: 14px; color: #111; margin-top: 3px; font-weight: 500; }
+    .conv-meta { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .conv-btn {
+      margin-top: 8px; padding: 8px 14px;
+      background: #ede9fe; color: #7c3aed;
+      border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .conv-btn:active { opacity: .75; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    input {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid #e5e7eb; border-radius: 10px;
+      font-size: 14px; margin-bottom: 12px; color: #111;
+    }
+    input:focus { outline: none; border-color: var(--p); }
+    .empty { color: #9ca3af; font-size: 14px; text-align: center; padding: 16px 0; }
+    .toast {
+      position: fixed;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      left: 50%; transform: translateX(-50%) translateY(10px);
+      background: #111; color: white;
+      padding: 12px 22px; border-radius: 10px;
+      font-size: 14px; font-weight: 500;
+      white-space: nowrap; z-index: 100;
+      opacity: 0; transition: opacity .2s, transform .2s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    footer { text-align: center; padding: 20px 16px 8px; font-size: 11px; color: #9ca3af; }
+    footer a { color: var(--p); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:26px;">🧠</span>
+  <h1>OMP Bridge</h1>
+  <div id="statusDot" title="Connecting..."></div>
+</header>
+
+<div class="card">
+  <div class="count-row">
+    <div class="count-num" id="memCount">—</div>
+    <div class="count-label">memories<br>on your server</div>
+  </div>
+  <button class="btn btn-primary" id="copyBtn" onclick="copyContext()">📋 Copy context to clipboard</button>
+  <button class="btn btn-outline" id="handoffBtn" onclick="getHandoff()" style="display:none">🔀 Continue conversation</button>
+</div>
+
+<div class="card" id="memCard">
+  <div class="section-title">Recent memories</div>
+  <div id="memList"><div class="empty">Loading…</div></div>
+</div>
+
+<div class="card" id="convCard" style="display:none">
+  <div class="section-title">Recent conversations</div>
+  <div id="convList"></div>
+</div>
+
+<div class="card">
+  <div class="section-title">Settings</div>
+  <label>API Key <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
+  <input id="apiKey" type="password" placeholder="Leave empty if not set">
+  <button class="btn btn-primary" onclick="saveSettings()">Save & Refresh</button>
+</div>
+
+<footer>
+  <a href="https://github.com/SMJAI/open-memory-protocol" target="_blank">
+    github.com/SMJAI/open-memory-protocol
+  </a><br><br>
+  <small>Bookmark this page and Add to Home Screen for quick access</small>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const apiKey = () => localStorage.getItem('ompApiKey') || ''
+  const headers = () => ({
+    'Content-Type': 'application/json',
+    ...(apiKey() ? { Authorization: `Bearer ${apiKey()}` } : {}),
+  })
+
+  let memories = []
+  let conversations = []
+  let latestConv = null
+
+  function toast(msg, duration = 2500) {
+    const el = document.getElementById('toast')
+    el.textContent = msg
+    el.classList.add('show')
+    setTimeout(() => el.classList.remove('show'), duration)
+  }
+
+  function timeAgo(iso) {
+    const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+    if (mins < 60) return `${mins}m ago`
+    if (mins < 1440) return `${Math.round(mins/60)}h ago`
+    return `${Math.round(mins/1440)}d ago`
+  }
+
+  async function load() {
+    const dot = document.getElementById('statusDot')
+    try {
+      const [mRes, cRes] = await Promise.all([
+        fetch('/v1/memories?limit=20', { headers: headers() }),
+        fetch('/v1/conversations?limit=5', { headers: headers() }),
+      ])
+      if (!mRes.ok) throw new Error(mRes.status)
+
+      const mData = await mRes.json()
+      const cData = await cRes.json()
+      memories = mData.memories || []
+      conversations = cData.conversations || []
+
+      dot.className = 'ok'
+      dot.title = 'Connected'
+      document.getElementById('memCount').textContent = mData.total ?? memories.length
+
+      // Render memories
+      const ml = document.getElementById('memList')
+      if (!memories.length) {
+        ml.innerHTML = '<div class="empty">No memories yet.<br>Start chatting with Claude Desktop.</div>'
+      } else {
+        ml.innerHTML = memories.slice(0, 8).map(m =>
+          `<div class="mem-item"><span class="tag">${m.type}</span>${m.content.slice(0, 120)}${m.content.length > 120 ? '…' : ''}</div>`
+        ).join('')
+        if (memories.length > 8) {
+          ml.innerHTML += `<div class="mem-item" style="color:#9ca3af;">+ ${memories.length - 8} more memories</div>`
+        }
+      }
+
+      // Render conversations
+      if (conversations.length) {
+        document.getElementById('convCard').style.display = 'block'
+        document.getElementById('convList').innerHTML = conversations.map(c =>
+          `<div class="conv-item">
+            <div class="conv-model">${c.model}</div>
+            <div class="conv-topic">${c.topic.slice(0, 80)}${c.topic.length > 80 ? '…' : ''}</div>
+            <div class="conv-meta">${c.message_count} messages · ${timeAgo(c.created_at)}</div>
+            <button class="conv-btn" onclick="getHandoffFor('${c.id}', '${c.model}')">🔀 Get handoff brief</button>
+          </div>`
+        ).join('')
+        latestConv = conversations[0]
+        document.getElementById('handoffBtn').style.display = 'block'
+        document.getElementById('handoffBtn').textContent = `🔀 Continue from ${latestConv.model}`
+      }
+    } catch (e) {
+      dot.className = 'err'
+      dot.title = 'Cannot reach OMP server'
+      document.getElementById('memCount').textContent = '!'
+      document.getElementById('memList').innerHTML =
+        '<div class="empty">Cannot reach OMP server.<br>Make sure it is running on your network.</div>'
+    }
+  }
+
+  async function copyContext() {
+    const btn = document.getElementById('copyBtn')
+    if (!memories.length) { toast('No memories to copy'); return }
+    const lines = memories.map(m => `- [${m.type}] ${m.content}`)
+    const text = `[Memory context from OMP]\n${lines.join('\n')}\n\n---\n\n`
+    try {
+      await navigator.clipboard.writeText(text)
+      btn.textContent = '✅ Copied!'
+      toast('Context copied — paste into any AI app')
+      setTimeout(() => { btn.textContent = '📋 Copy context to clipboard' }, 2500)
+    } catch {
+      // Fallback for older iOS
+      const ta = document.createElement('textarea')
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'
+      document.body.appendChild(ta); ta.focus(); ta.select()
+      document.execCommand('copy'); document.body.removeChild(ta)
+      toast('Context copied!')
+    }
+  }
+
+  async function getHandoffFor(convId, sourceModel) {
+    toast('Generating handoff brief…', 5000)
+    try {
+      const res = await fetch('/v1/handoff', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ conversation_id: convId, target_model: 'assistant' }),
+      })
+      const data = await res.json()
+      if (data.brief) {
+        await navigator.clipboard.writeText(data.brief)
+        toast('✅ Brief copied — paste into any AI to continue', 3500)
+      } else {
+        toast('Could not generate brief')
+      }
+    } catch {
+      toast('Error — is the server running?')
+    }
+  }
+
+  async function getHandoff() {
+    if (!latestConv) return
+    getHandoffFor(latestConv.id, latestConv.model)
+  }
+
+  function saveSettings() {
+    localStorage.setItem('ompApiKey', document.getElementById('apiKey').value)
+    load()
+    toast('Saved')
+  }
+
+  // Restore settings
+  document.getElementById('apiKey').value = apiKey()
+
+  load()
+</script>
+</body>
+</html>

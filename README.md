@@ -250,9 +250,13 @@ Read the full specification: [SPEC.md](SPEC.md)
 | Gemini (web) | ✅ Working | OMP Bridge extension |
 | Perplexity (web) | ✅ Working | OMP Bridge extension |
 | Claude Code (CLI) | ✅ Working | `claude mcp add omp-mcp` — same MCP tools |
-| Any AI CLI (Aider etc.) | ✅ Working | `omp` CLI — inject context, save sessions |
-| Cursor | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
-| Copilot / VS Code | 🙋 Help wanted | [Open issue](https://github.com/SMJAI/open-memory-protocol/issues) |
+| Cursor | ✅ Working | `omp inject --for cursor` — writes `.cursorrules` |
+| GitHub Copilot | ✅ Working | `omp inject --for copilot` — writes `.github/copilot-instructions.md` |
+| Codex CLI | ✅ Working | `omp inject --for codex` — writes `AGENTS.md` |
+| Any AI CLI | ✅ Working | `omp context \| <cli>` or `omp save` |
+| Mobile (PWA) | ✅ Working | Open `http://YOUR_PC_IP:3456/app` on phone — bookmark it |
+| Mobile (iOS Shortcut) | ✅ Working | One tap → copies OMP context → paste into any app |
+| Remote / cloud | ✅ Working | Deploy to Railway / fly.io / Docker — see [adapters/mobile](adapters/mobile) |
 | Custom (REST) | ✅ Available | Any HTTP client |
 
 ### AI Coding Tools (Claude Code, Cursor, Copilot, Codex CLI)
@@ -368,6 +372,7 @@ OMP is designed on these principles:
 - [x] v0.1 — Core spec, reference server, MCP adapter
 - [x] v0.2 — AI memory extraction, conversation compression, MCP resources + prompts
 - [x] v0.3 — Cross-model conversation handoff (browser extension + `/v1/conversations` + `/v1/handoff`)
+- [x] v0.4 — Mobile PWA, iOS Shortcut, remote hosting (Railway / fly.io / Docker)
 - [ ] v0.4 — Semantic search with embeddings, pgvector support
 - [ ] v0.5 — Memory namespacing (per-project memories)
 - [ ] v0.6 — Multi-user support, access control

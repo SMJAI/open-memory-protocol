@@ -1,5 +1,6 @@
 import express from 'express'
 import path from 'path'
+import fs from 'fs'
 import { SQLiteStorage } from './storage/sqlite'
 import { memoriesRouter } from './routes/memories'
 import { extractRouter } from './routes/extract'
@@ -39,6 +40,13 @@ app.get('/v1/health', (_req, res) => {
     memories_count: storage.count(),
   })
 })
+
+// Mobile PWA
+const publicDir = path.join(__dirname, '..', 'public')
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir))
+  app.get('/app', (_req, res) => res.sendFile(path.join(publicDir, 'app.html')))
+}
 
 app.use('/v1/memories', memoriesRouter(storage))
 app.use('/v1/extract', extractRouter(storage))

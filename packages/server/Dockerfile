@@ -1,18 +1,21 @@
-FROM node:24-slim AS build
+﻿FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package.json tsconfig.json ./
+COPY package*.json ./
+RUN npm ci
 COPY src ./src
-RUN npm install
+COPY tsconfig.json ./
 RUN npm run build
 
-FROM node:24-slim
+FROM node:22-alpine
 WORKDIR /app
-ENV NODE_ENV=production
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY public ./public
+
 ENV OMP_PORT=3456
 ENV OMP_DB_PATH=/data/omp.db
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./package.json
-RUN npm install --omit=dev
-VOLUME ["/data"]
+
 EXPOSE 3456
+VOLUME ["/data"]
+
 CMD ["node", "dist/index.js"]
